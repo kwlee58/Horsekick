@@ -1,0 +1,141 @@
+---
+title: "Cumulative Plot"
+author: "coop711"
+date: "2015년 5월 18일"
+output: html_document
+---
+
+Number of Deaths by Horsekicks
+------------------------------
+
+프러시아에서 20년간 14개 연대에서 발생한 말발굽에 의한 사망 사고 기록
+
+```{r}
+n.deaths<-0:4
+n.camps<-c(144,91,32,11,2)
+horsekick<-data.frame(n.deaths=n.deaths, n.camps=n.camps)
+horsekick
+```
+
+이 자료를 하나의 긴 벡터로 나타내는 것은 간단히
+
+```{r}
+horsekick.long<-rep(n.deaths, times=n.camps)
+str(horsekick.long)
+summary(horsekick.long)
+```
+
+위 자료를 누적분포로 도식화하기 위한 첫 작업
+
+```{r fig.width=6, fig.height=6}
+options(digits=3)
+horsekick.p<-n.camps/sum(n.camps)
+horsekick.p
+horsekick.cum<-round(cumsum(horsekick.p)*100, digits=1)
+plot(n.deaths, horsekick.cum, xlim=c(-0.5,4.5), ylim=c(50,100), xlab="사망자 수", ylab="누적 백분률(%)", yaxt="n")
+axis(side=2,at=horsekick.cum, labels=horsekick.cum)
+```
+
+누적 분포를 알기 쉽도록 격자 설정
+
+
+```{r fig.width=6, fig.height=6}
+options(digits=3)
+plot(n.deaths, horsekick.cum, xlim=c(-0.5,4.5), ylim=c(50,100), xlab="사망자 수", ylab="누적 백분률(%)", yaxt="n")
+axis(side=2, at=horsekick.cum, labels=horsekick.cum)
+abline(v=0:4, lty=2)
+lines(c(0,1), rep(horsekick.cum[1], 2), lty=2)
+lines(c(0,2), rep(horsekick.cum[2], 2), lty=2)
+lines(c(0,3), rep(horsekick.cum[3], 2), lty=2)
+lines(c(0,4), rep(horsekick.cum[4], 2), lty=2)
+lines(c(0,4.5), rep(horsekick.cum[5], 2), lty=2)
+```
+
+`lines()`는 아래와 같이 `apply()`를 이용하여 작업을 다소 줄일 수도 있다. 우선, 좌표를 정리한다.
+
+```{r}
+h.x<-rbind(rep(0, 5), c(1:4, 4.5))
+h.x
+h.y<-sapply(horsekick.cum, rep, times=2)
+h.y
+h.xy<-rbind(h.x, h.y)
+h.xy
+```
+
+`plot()`에서 `abline()`까지가 반복해서 나올 것이므로, `source()`를 이용하기 위한 코드 작성.
+
+```{r}
+readLines("horsekick_plot.R")
+```
+
+격자선을 놓는 과정까지를 두 줄로 줄일 수 있다.
+
+```{r fig.width=6, fig.height=6}
+source("horsekick_plot.R")
+apply(h.xy, 2, function(h) lines(x=h[1:2], y=h[3:4], lty=2))
+l.xy<-function(h) lines(x=h[1:2], y=h[3:4], lty=2)
+```
+
+누적분포 윗 면적을 명확히 표시하기 위하여 빗금
+
+```{r fig.width=6, fig.height=6}
+source("horsekick_plot.R")
+apply(h.xy, 2, l.xy)
+polygon(c(0,1,1,0),c(rep(horsekick.cum[1],2), rep(horsekick.cum[5],2)), density=10, angle=15)
+polygon(c(1,2,2,1),c(rep(horsekick.cum[2],2), rep(horsekick.cum[5],2)), density=10, angle=165)
+polygon(c(2,3,3,2),c(rep(horsekick.cum[3],2), rep(horsekick.cum[5],2)), density=10, angle=30)
+polygon(c(3,4,4,3),c(rep(horsekick.cum[4],2), rep(horsekick.cum[5],2)), density=10, angle=150)
+```
+
+`polygon()`들을 한 줄로 정리하기 위하여 좌표들을 모으고, 
+
+```{r}
+poly.x<-matrix(c(0:3, rep(1:4, 2), 0:3), ncol=4, byrow=T)
+poly.x
+poly.y<-rbind(sapply(horsekick.cum[1:4], rep, times=2), matrix(rep(horsekick.cum[5], 8),nrow=2))
+poly.y
+poly.xy<-rbind(poly.x, poly.y)
+poly.xy
+lapply(data.frame(poly.xy), function(v) cbind(v[1:4], v[5:8]))
+```
+
+`sapply()`, `lapply()`, `mapply()`를 적재적소에 활용하여 분량을 줄여보자.
+
+```{r fig.width=6, fig.height=6}
+source("horsekick_plot.R")
+apply(h.xy, 2, l.xy)
+mapply(polygon, lapply(data.frame(poly.xy), function(v) cbind(v[1:4], v[5:8])), density=10, angle=c(15, 165, 30, 150))
+```
+
+누적분포 윗 면적이 곧 평균임을 나타내기 위해 막대를 다른 방향으로 집적. 우선 좌표들을 다시 정리하자.
+
+```{r}
+poly.x.2<-matrix(c(rep(0,4), rep(1:4, 2), rep(0, 4)), ncol=4, byrow=TRUE)
+poly.y.2<-rbind(sapply(horsekick.cum[1:4], rep, times=2), sapply(horsekick.cum[2:5], rep, times=2))
+poly.xy.2<-rbind(poly.x.2, poly.y.2)
+```
+
+```{r fig.width=6, fig.height=6}
+source("horsekick_plot.R")
+apply(h.xy, 2, l.xy)
+mapply(polygon, lapply(data.frame(poly.xy.2), function(v) cbind(v[1:4], v[5:8])), density=10, angle=c(15, 165, 30, 150))
+```
+
+중간에 약간의 작업이 들어가긴 하지만 아래 소스코드와 비교하라.
+
+```{r fig.width=6, fig.height=6}
+options(digits=3)
+plot(n.deaths, horsekick.cum, xlim=c(-0.5,4.5), ylim=c(50,100), xlab="사망자 수", ylab="누적 백분률(%)", yaxt="n")
+axis(side=2,at=horsekick.cum, labels=horsekick.cum)
+abline(v=0:5, lty=2)
+apply(h.xy, 2, l.xy)
+polygon(c(0,1,1,0),c(rep(horsekick.cum[1],2),rep(horsekick.cum[2],2)), density=10, angle=15)
+polygon(c(0,2,2,0),c(rep(horsekick.cum[2],2),rep(horsekick.cum[3],2)), density=10, angle=165)
+polygon(c(0,3,3,0),c(rep(horsekick.cum[3],2),rep(horsekick.cum[4],2)), density=10, angle=30)
+polygon(c(0,4,4,0),c(rep(horsekick.cum[4],2),rep(horsekick.cum[5],2)), density=10, angle=150)
+```
+
+이번에 쌓아놓은 막대 면적의 합은 평균을 계산한 것임을 확인.
+
+
+
